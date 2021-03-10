@@ -12,30 +12,31 @@ use std::path::Path;
 fn main() {
     let target = env::var("TARGET").unwrap();
     let host = env::var("HOST").unwrap();
+
+    let mut config = gcc::Config::new();
+    #[cfg(feature = "aes")]
+    config.define("AES", None);
+
     if target.contains("msvc") && host.contains("windows") {
-        let mut config = gcc::Config::new();
         config.file("src/util_helpers.asm");
         config.file("src/aesni_helpers.asm");
         if target.contains("x86_64") {
             config.define("X64", None);
         }
         config.compile("lib_rust_crypto_helpers.a");
-    }
-    else {
-        let mut cfg = gcc::Config::new();
-        cfg.file("src/util_helpers.c");
-        cfg.file("src/aesni_helpers.c");
+    } else {
+        config.file("src/util_helpers.c");
+        config.file("src/aesni_helpers.c");
         if env::var_os("CC").is_none() {
             if host.contains("openbsd") {
                 // Use clang on openbsd since there have been reports that
                 // GCC doesn't like some of the assembly that we use on that
                 // platform.
-                cfg.compiler(Path::new("clang"));
+                config.compiler(Path::new("clang"));
             } else if target == host {
-                cfg.compiler(Path::new("cc"));
+                config.compiler(Path::new("cc"));
             }
         }
-        cfg.compile("lib_rust_crypto_helpers.a");
+        config.compile("lib_rust_crypto_helpers.a");
     }
 }
-
